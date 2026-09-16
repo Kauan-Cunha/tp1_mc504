@@ -1,6 +1,6 @@
 import csv
 import sys
-
+import heapq
 
 def read_processes(filename):
     """Read processes from a CSV file."""
@@ -33,9 +33,23 @@ def fcfs(processes):
         events: list of (time, process_name)
         average_waiting_time: float
     """
+    if not processes:
+        return [], 0.0
 
-    # TODO: implement
-    return [], 0.0
+    res = []
+    espera, t = 0, 0
+
+    for p in processes:
+        #piddle handler
+        if p['arrival'] > t:
+            res.append((t, 'Pidle'))
+            t = p['arrival']
+
+        res.append((t, p['name']))
+        espera += t - p['arrival']
+        t += p['burst']
+
+    return res, espera/len(processes)
 
 
 def sjf(processes):
@@ -46,10 +60,35 @@ def sjf(processes):
         events: list of (time, process_name)
         average_waiting_time: float
     """
+    if not processes:
+        return [], 0.0
 
-    # TODO: implement
-    return [], 0.0
+    res, heap = [],[] 
+    espera, t = 0, processes[0]['arrival']
+    if t > 0: res.append((0, 'Pidle'))
 
+    i, n = 0, len(processes)
+    while i < n or heap:
+
+        #adiciona todos os processos que já chegaram em um heap
+        while i < n and processes[i]['arrival'] <= t:
+            p = processes[i]
+            heapq.heappush(heap, (p['burst'], i, p['name'], p['arrival']))
+            i += 1
+
+
+        if not heap:
+            res.append((t, 'Pidle'))
+            t = processes[i]['arrival']
+            continue
+
+        burst, _, name, arrival = heapq.heappop(heap)
+
+        res.append((t, name))
+        espera += t - arrival
+        t += burst
+
+    return res, espera/n
 
 def srtf(processes):
     """
