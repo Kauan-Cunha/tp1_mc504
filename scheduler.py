@@ -1,6 +1,7 @@
 import csv
 import sys
 import heapq
+from collections import deque
 
 def read_processes(filename):
     """Read processes from a CSV file."""
@@ -99,8 +100,45 @@ def srtf(processes):
         average_waiting_time: float
     """
 
-    # TODO: implement
-    return [], 0.0
+    if not processes:
+        return [], 0.0
+
+    res, heap = [],[] 
+    espera, t = 0, processes[0]['arrival']
+    if t > 0: res.append((0, 'Pidle'))
+
+    i, n = 0, len(processes)
+    while i < n or heap:
+
+        #adiciona todos os processos que já chegaram em um heap
+        while i < n and processes[i]['arrival'] <= t:
+            p = processes[i]
+            heapq.heappush(heap, (p['burst'], i, p['name'], p['arrival']))
+            i += 1
+
+
+        if not heap:
+            res.append((t, 'Pidle'))
+            t = processes[i]['arrival']
+            continue
+
+        remaining, idx, name, arrival = heapq.heappop(heap)
+        res.append((t, name))
+
+        # Executa até terminar ou chegar outro processo
+        duration = remaining
+        if i < n:
+            duration = min(duration, processes[i]['arrival'] - t)
+
+        t += duration
+        remaining -= duration
+
+        if remaining > 0:
+            heapq.heappush(heap, (remaining, idx, name, arrival))
+        else:
+            espera += t - arrival - processes[idx]['burst']
+
+    return res, espera/n
 
 
 def round_robin(processes, quantum):
@@ -112,8 +150,45 @@ def round_robin(processes, quantum):
         average_waiting_time: float
     """
 
-    # TODO: implement
-    return [], 0.0
+    if not processes:
+        return [], 0.0
+    if quantum <= 0:
+        raise ValueError("quantum must be positive")
+
+    queue = deque()
+    res = []
+    wait, t, i, n = 0, 0, 0, len(processes)
+
+    while i < n or queue:
+        if not queue and t < processes[i]['arrival']:
+            res.append((t, 'Pidle'))
+            t = processes[i]['arrival']
+
+        while i < n and processes[i]['arrival'] <= t:
+            p = processes[i].copy()
+            p['remain'] = p['burst']
+            queue.append(p)
+            i += 1
+
+        curr = queue.popleft()
+        res.append((t, curr['name']))
+        duration = min(curr['remain'], quantum)
+        curr['remain'] -= duration
+        t += duration
+
+        # Quem chegou durante o quantum entra antes do processo atual.
+        while i < n and processes[i]['arrival'] <= t:
+            p = processes[i].copy()
+            p['remain'] = p['burst']
+            queue.append(p)
+            i += 1
+
+        if curr['remain'] == 0:
+            wait += t - curr['arrival'] - curr['burst']
+        else:
+            queue.append(curr)
+
+    return res, wait/n
 
 
 def priority(processes):
@@ -126,9 +201,34 @@ def priority(processes):
         events: list of (time, process_name)
         average_waiting_time: float
     """
+    if not processes:
+        return [], 0.0
 
-    # TODO: implement
-    return [], 0.0
+    res, heap = [],[] 
+    espera, t = 0, processes[0]['arrival']
+    if t > 0: res.append((0, 'Pidle'))
+
+    i, n = 0, len(processes)
+    while i < n or heap:
+
+        #adiciona todos os processos que já chegaram em um heap
+        while i < n and processes[i]['arrival'] <= t:
+            p = processes[i]
+            heapq.heappush(heap, (p['priority'], i, p['burst'], p['name'], p['arrival']))
+            i += 1
+
+        if not heap:
+            res.append((t, 'Pidle'))
+            t = processes[i]['arrival']
+            continue
+
+        _, _, burst, name, arrival = heapq.heappop(heap)
+
+        res.append((t, name))
+        espera += t - arrival
+        t += burst
+
+    return res, espera/n
 
 
 def priority_preemptive(processes):
