@@ -242,8 +242,44 @@ def priority_preemptive(processes):
         average_waiting_time: float
     """
 
-    # TODO: implement
-    return [], 0.0
+    if not processes:
+        return [], 0.0
+
+    res, heap = [],[]
+    espera, t = 0, processes[0]['arrival']
+    if t > 0: res.append((0, 'Pidle'))
+
+    i, n = 0, len(processes)
+    while i < n or heap:
+
+        #adiciona todos os processos que já chegaram em um heap
+        while i < n and processes[i]['arrival'] <= t:
+            p = processes[i]
+            heapq.heappush(heap, (p['priority'], i, p['burst'], p['name'], p['arrival']))
+            i += 1
+
+        if not heap:
+            res.append((t, 'Pidle'))
+            t = processes[i]['arrival']
+            continue
+
+        priority, idx, remaining, name, arrival = heapq.heappop(heap)
+        res.append((t, name))
+
+        # Executa até terminar ou chegar outro processo
+        duration = remaining
+        if i < n:
+            duration = min(duration, processes[i]['arrival'] - t)
+
+        t += duration
+        remaining -= duration
+
+        if remaining > 0:
+            heapq.heappush(heap, (priority, idx, remaining, name, arrival))
+        else:
+            espera += t - arrival - processes[idx]['burst']
+
+    return res, espera/n
 
 
 def priority_rr(processes, quantum):
@@ -258,8 +294,46 @@ def priority_rr(processes, quantum):
         average_waiting_time: float
     """
 
-    # TODO: implement
-    return [], 0.0
+    if not processes:
+        return [], 0.0
+    if quantum <= 0:
+        raise ValueError("quantum must be possssitive")
+
+    res, heap = [],[]
+    espera, t, order = 0, 0, 0
+    i, n = 0, len(processes)
+
+    while i < n or heap:
+        if not heap and t < processes[i]['arrival']:
+            res.append((t, 'Pidle'))
+            t = processes[i]['arrival']
+
+        while i < n and processes[i]['arrival'] <= t:
+            p = processes[i]
+            heapq.heappush(heap, (p['priority'], order, i, p['burst']))
+            order += 1
+            i += 1
+
+        priority, _, idx, remaining = heapq.heappop(heap)
+        p = processes[idx]
+        res.append((t, p['name']))
+        duration = min(remaining, quantum)
+        remaining -= duration
+        t += duration
+
+        while i < n and processes[i]['arrival'] <= t:
+            curr = processes[i]
+            heapq.heappush(heap, (curr['priority'], order, i, curr['burst']))
+            order += 1
+            i += 1
+
+        if remaining > 0:
+            heapq.heappush(heap, (priority, order, idx, remaining))
+            order += 1
+        else:
+            espera += t - p['arrival'] - p['burst']
+
+    return res, espera/n
 
 
 # ---------------------------------------------------------------------------
